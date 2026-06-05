@@ -32,8 +32,8 @@ export function createInput(canvas) {
   document.addEventListener('touchstart', e => {
     if (e.target.closest('button')) return; // let the DOM button handle its own taps
     e.preventDefault();
-    lastTouchClientX     = e.touches[0].clientX;
-    state.launchPressed  = true;
+    lastTouchClientX = e.touches[0].clientX;
+    // launchPressed fires on touchend so the player can adjust paddle before releasing
   }, { passive: false });
 
   document.addEventListener('touchmove', e => {
@@ -50,7 +50,8 @@ export function createInput(canvas) {
   document.addEventListener('touchend', e => {
     if (e.target.closest('button')) return;
     e.preventDefault();
-    lastTouchClientX = null;
+    lastTouchClientX    = null;
+    state.launchPressed = true; // finger lifted = launch / relaunch
   }, { passive: false });
 
   // ── Keyboard ───────────────────────────────────────────────────────────
