@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0c12">
+  <title>Fortress Breakout</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- wrapper scales with canvas so the DOM button aligns with canvas pixels -->
+  <div id="game-wrapper">
+    <canvas id="canvas"></canvas>
+
+    <!-- visible only on MENU — button positioned to match canvas coordinates -->
+    <div id="menu-ui">
+      <button id="door-toggle" class="door-off">DOOR: STAYS OPEN</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0c12;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+}
+
+/* ── Wrapper matches canvas size exactly so button positions are pixel-perfect */
+#game-wrapper {
+  position: relative;
+  width: min(600px, 100vw);
+  aspect-ratio: 600 / 720;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: none;
+}
+
+@media (pointer: coarse) {
+  canvas { cursor: default; }
+}
+
+/* ── Menu UI layer — covers the canvas, passes through touches/clicks except on button */
+#menu-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+#menu-ui.visible {
+  display: block;
+}
+
+/* ── Toggle button
+   Position matches canvas coords: center at (300, 378) out of (600, 720)
+   left  = 180/600 = 30%,  width = 240/600 = 40%
+   top   = 378/720 = 52.5%                                                  */
+#door-toggle {
+  pointer-events: all;
+  position: absolute;
+  left: 50%;
+  top: 52.5%;
+  transform: translate(-50%, -50%);
+  width: 40%;
+  min-width: 160px;
+  padding: 0 8px;
+  height: 5.56%;          /* 40/720 */
+  min-height: 28px;
+
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: clamp(9px, 1.8vw, 13px);
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: filter 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* OFF state — door stays open */
+#door-toggle.door-off {
+  background: #1a1a2e;
+  color: #888888;
+  border: 1.5px solid #555555;
+  box-shadow: none;
+}
+
+/* ON state — door closes */
+#door-toggle.door-on {
+  background: #0a2e26;
+  color: #06d6a0;
+  border: 1.5px solid #06d6a0;
+  box-shadow: 0 0 14px rgba(6, 214, 160, 0.45);
+}
+
+/* Hover (desktop) */
+#door-toggle:hover {
+  filter: brightness(1.25);
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+/* Press (desktop + mobile tap) */
+#door-toggle:active {
+  filter: brightness(0.85);
+  transform: translate(-50%, -50%) scale(0.96);
+}
