@@ -99,3 +99,8 @@ canvas {
   filter: brightness(0.85);
   transform: translate(-50%, -50%) scale(0.96);
 }
+
+/* On win/lose screens move button below the score + restart hint */
+#menu-ui.end-screen #door-toggle {
+  top: 76%;
+}

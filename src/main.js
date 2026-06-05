@@ -174,8 +174,10 @@ function loop(ts) {
   const dt = Math.min((ts - lastTs) / 1000, 1 / 30);
   lastTs = ts;
 
-  // Show DOM toggle only on MENU
-  menuUI.classList.toggle('visible', state === 'MENU');
+  // Show DOM toggle on MENU + end screens so player can change before restarting
+  const showToggle = (state === 'MENU' || state === 'WON' || state === 'LOST');
+  menuUI.classList.toggle('visible', showToggle);
+  menuUI.classList.toggle('end-screen', state === 'WON' || state === 'LOST');
 
   if (consumeRestart(input)) { initGame(); state = 'PLAYING'; }
 
@@ -186,8 +188,6 @@ function loop(ts) {
     if (consumePause(input)) gs.paused = !gs.paused;
 
     if (!gs.paused) {
-      if (consumeLaunch(input)) tryLaunch();
-
       const { paddle, balls, puState, brickGrid, cinematic, scorePops } = gs;
 
       // Snapshot trail positions before physics moves the balls
@@ -233,6 +233,9 @@ function loop(ts) {
           gs.balls.push(createBall(paddle.x + paddle.w / 2, paddle.y - BALL_R - 1));
         }
       }
+
+      // Launch check is AFTER ball creation so a touchend during death frame still works
+      if (consumeLaunch(input)) tryLaunch();
 
       if (gs.breakableCount <= 0) { state = 'WON'; sfxWin(); }
     }
