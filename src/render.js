@@ -85,6 +85,9 @@ export function render(ctx, gs, state) {
     ctx.restore();
   }
 
+  // Corner watermark — always visible
+  drawWatermark(ctx);
+
   // State overlays
   if (state === 'MENU') {
     drawMenuOverlay(ctx);
@@ -310,6 +313,19 @@ function drawEndOverlay(ctx, title, score, color) {
   ctx.fillStyle = '#444444';
   ctx.font = '12px monospace';
   ctx.fillText('Press R or click to play again', CANVAS_W / 2, CANVAS_H / 2 + 84);
+}
+
+// ---------------------------------------------------------------------------
+// Watermark
+// ---------------------------------------------------------------------------
+function drawWatermark(ctx) {
+  ctx.save();
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.font         = 'bold 11px monospace';
+  ctx.fillStyle    = 'rgba(237,242,244,0.18)';
+  ctx.fillText('by Akash', CANVAS_W - 8, CANVAS_H - 6);
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------------------
