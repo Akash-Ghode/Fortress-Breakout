@@ -9,10 +9,18 @@ export function createPaddle() {
   };
 }
 
-export function updatePaddle(paddle, mouseX, keys, dt, extended) {
+export function updatePaddle(paddle, mouseX, touchDeltaX, keys, dt, extended) {
+  // Desktop mouse: teleport paddle center to cursor
   if (mouseX !== null) {
     paddle.x = mouseX - paddle.w / 2;
   }
+
+  // Mobile touch: relative drag — move from current position
+  if (touchDeltaX !== 0) {
+    paddle.x += touchDeltaX;
+  }
+
+  // Keyboard
   if (keys.left)  paddle.x -= PADDLE_KEY_SPEED * dt;
   if (keys.right) paddle.x += PADDLE_KEY_SPEED * dt;
 

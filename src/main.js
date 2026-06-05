@@ -198,7 +198,8 @@ function loop(ts) {
         if (ball.trail.length > TRAIL_LEN) ball.trail.shift();
       }
 
-      updatePaddle(paddle, input.mouseX, input.keys, dt, isExtendActive(puState));
+      updatePaddle(paddle, input.mouseX, input.touchDeltaX, input.keys, dt, isExtendActive(puState));
+      input.touchDeltaX = 0; // consume delta — don't carry it into the next frame
       tickPowerups(puState, dt);
 
       let speed = getCurrentSpeed(puState);

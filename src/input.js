@@ -8,9 +8,10 @@ export function createInput(canvas) {
     launchPressed:  false,
     restartPressed: false,
     pausePressed:   false,
+    touchDeltaX:    0,    // relative drag delta since last frame (touch only)
   };
 
-  // ── Mouse ──────────────────────────────────────────────────────────────
+  // ── Mouse (desktop) — absolute position teleport ───────────────────────
   canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
     state.mouseX = (e.clientX - rect.left) * (canvas.width  / rect.width);
@@ -24,37 +25,32 @@ export function createInput(canvas) {
     state.launchPressed = true;
   });
 
-  // ── Touch ──────────────────────────────────────────────────────────────
-  function touchCoords(touch) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (touch.clientX - rect.left) * (canvas.width  / rect.width),
-      y: (touch.clientY - rect.top)  * (canvas.height / rect.height),
-    };
-  }
+  // ── Touch (mobile) — relative drag, works anywhere on screen ──────────
+  let lastTouchClientX = null;
 
-  // touchstart: move paddle + fire launch (same as a click)
-  canvas.addEventListener('touchstart', e => {
+  // Listen on document so touches below the canvas also move the paddle
+  document.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) return; // let the DOM button handle its own taps
     e.preventDefault();
-    const { x, y } = touchCoords(e.touches[0]);
-    state.mouseX     = x;
-    state.mouseY     = y;
-    state.lastClickX = x;
-    state.lastClickY = y;
-    state.launchPressed = true;
+    lastTouchClientX     = e.touches[0].clientX;
+    state.launchPressed  = true;
   }, { passive: false });
 
-  // touchmove: steer the paddle
-  canvas.addEventListener('touchmove', e => {
+  document.addEventListener('touchmove', e => {
+    if (e.target.closest('button')) return;
     e.preventDefault();
-    const { x, y } = touchCoords(e.touches[0]);
-    state.mouseX = x;
-    state.mouseY = y;
+    if (lastTouchClientX === null) return;
+    const rect  = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;   // canvas logical px per CSS px
+    const currentX = e.touches[0].clientX;
+    state.touchDeltaX += (currentX - lastTouchClientX) * scale;
+    lastTouchClientX = currentX;
   }, { passive: false });
 
-  // touchend: nothing extra needed — launch was already set on touchstart
-  canvas.addEventListener('touchend', e => {
+  document.addEventListener('touchend', e => {
+    if (e.target.closest('button')) return;
     e.preventDefault();
+    lastTouchClientX = null;
   }, { passive: false });
 
   // ── Keyboard ───────────────────────────────────────────────────────────
