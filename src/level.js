@@ -56,49 +56,58 @@ export const LEVEL_MAP = generateMap();
 
 // ── Level 2 map ────────────────────────────────────────────────────────────
 // Layout (100×100):
-//   Rows  0-59  breakable field, 8×8 empty clearing at rows 26-33, cols 46-53
-//   Rows 60-79  tunnel zone — cols 48-50 empty passage, rest breakable
-//   Rows 80-99  staircase — 5 rock steps (4 rows each), gap shifts 1 col right
-//               per step; bottom gap cols 44-46, top gap cols 48-50 (= tunnel entry)
+//   Rows  0-24  dense breakable field
+//   Rows 25-39  15×15 empty clearing (cols 43-57); breakable outside clearing cols
+//   Rows 40-79  tunnel — cols 48-50 empty corridor, rest breakable
+//               bottom of clearing (row 39) connects directly to tunnel top (row 40)
+//   Rows 80-99  staircase — 5 SQUARE steps (4 rows × 4 cells each, shift 2 cols left
+//               per step going down); top step cols 47-50 → tunnel; each adjacent
+//               step overlaps by 2 cells so the path is continuous
 export function generateLevel2Map() {
+  // Tunnel corridor
   const TUNNEL_LEFT  = 48;
-  const TUNNEL_RIGHT = 51; // cols 48, 49, 50
+  const TUNNEL_RIGHT = 52; // cols 48,49,50,51 — 4 cells (aligns with top stair step)
 
-  // Staircase: each entry = { rowStart (inclusive), rowEnd (exclusive), gapLeft }
-  // gap is always 3 cells wide (18px > ball diameter 8px)
+  // 15×15 clearing — tunnel exits directly into its bottom edge
+  const CLEAR_R0 = 25, CLEAR_R1 = 40; // rows 25-39 (15 rows)
+  const CLEAR_C0 = 43, CLEAR_C1 = 58; // cols 43-57 (15 cols)
+
+  // 5 square steps: 4 rows tall × 4 cells wide, each step shifts 2 cols left
+  // Adjacent steps share a 2-cell overlap → 12px > ball diameter 8px → passable
+  const GAP_W = 4;
   const STEPS = [
-    { rowStart: 96, rowEnd: 100, gapLeft: 44 },
-    { rowStart: 92, rowEnd:  96, gapLeft: 45 },
-    { rowStart: 88, rowEnd:  92, gapLeft: 46 },
-    { rowStart: 84, rowEnd:  88, gapLeft: 47 },
-    { rowStart: 80, rowEnd:  84, gapLeft: 48 }, // aligns with tunnel
+    { rowStart: 80, rowEnd: 84, gapLeft: 47 }, // top  — cols 47-50, overlaps tunnel 48-51 by 4 cells
+    { rowStart: 84, rowEnd: 88, gapLeft: 45 }, //       cols 45-48, overlaps above by 47-48 (2 cells)
+    { rowStart: 88, rowEnd: 92, gapLeft: 43 }, //       cols 43-46, overlaps by 45-46
+    { rowStart: 92, rowEnd: 96, gapLeft: 41 }, //       cols 41-44, overlaps by 43-44
+    { rowStart: 96, rowEnd:100, gapLeft: 39 }, // bottom cols 39-42, overlaps by 41-42
   ];
-
-  const CLEAR_R0 = 26, CLEAR_R1 = 34; // 8-row clearing
-  const CLEAR_C0 = 46, CLEAR_C1 = 54; // 8-col clearing
 
   const rows = [];
   for (let r = 0; r < ROWS; r++) {
     let row = '';
 
-    if (r < 60) {
-      // Breakable field with 8×8 empty clearing
+    if (r < CLEAR_R0) {
+      // Dense breakable field
+      for (let c = 0; c < COLS; c++) row += randomBlock();
+
+    } else if (r < 40) {
+      // Clearing zone: 15×15 empty rectangle, breakable outside it
       for (let c = 0; c < COLS; c++) {
-        row += (r >= CLEAR_R0 && r < CLEAR_R1 && c >= CLEAR_C0 && c < CLEAR_C1)
-          ? '.' : randomBlock();
+        row += (c >= CLEAR_C0 && c < CLEAR_C1) ? '.' : randomBlock();
       }
 
     } else if (r < 80) {
-      // Tunnel zone: open corridor at cols 48-50, breakable everywhere else
+      // Tunnel zone: open corridor leads straight up into clearing
       for (let c = 0; c < COLS; c++) {
         row += (c >= TUNNEL_LEFT && c < TUNNEL_RIGHT) ? '.' : randomBlock();
       }
 
     } else {
-      // Staircase zone: rock walls, zigzag gap
+      // Staircase: solid rock walls, square-stepped gap
       const step = STEPS.find(s => r >= s.rowStart && r < s.rowEnd);
       const gL = step ? step.gapLeft : TUNNEL_LEFT;
-      const gR = gL + 3;
+      const gR = gL + GAP_W;
       for (let c = 0; c < COLS; c++) {
         row += (c >= gL && c < gR) ? '.' : 'R';
       }
