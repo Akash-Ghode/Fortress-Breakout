@@ -104,12 +104,14 @@ export function generateLevel2Map() {
       }
 
     } else {
-      // Staircase: solid rock walls, square-stepped gap
+      // Staircase rows 80-99:
+      // Only the bottom 2 rows (98-99) are solid rock — rest use breakable blocks
       const step = STEPS.find(s => r >= s.rowStart && r < s.rowEnd);
       const gL = step ? step.gapLeft : TUNNEL_LEFT;
       const gR = gL + GAP_W;
       for (let c = 0; c < COLS; c++) {
-        row += (c >= gL && c < gR) ? '.' : 'R';
+        if (c >= gL && c < gR) row += '.';
+        else row += r >= 98 ? 'R' : randomBlock();
       }
     }
 
