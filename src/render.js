@@ -55,7 +55,7 @@ export function render(ctx, gs, state) {
   drawPaddle(ctx, gs.paddle, gs.puState);
 
   // HUD
-  drawHUD(ctx, gs.lives, gs.score, gs.breakableCount, gs.puState);
+  drawHUD(ctx, gs.lives, gs.score, gs.breakableCount, gs.puState, gs.currentLevel ?? 1);
 
   // Restore shake translation
   if (shaking) ctx.restore();
@@ -91,6 +91,8 @@ export function render(ctx, gs, state) {
   // State overlays
   if (state === 'MENU') {
     drawMenuOverlay(ctx);
+  } else if (state === 'TRANSITIONING') {
+    drawTransitionOverlay(ctx, gs.transitionTimer ?? 0);
   } else if (state === 'WON') {
     drawEndOverlay(ctx, 'YOU WIN!', gs.score, C.extend);
   } else if (state === 'LOST') {
@@ -197,13 +199,20 @@ function drawPaddle(ctx, { x, y, w, h }, puState) {
 // ---------------------------------------------------------------------------
 // HUD
 // ---------------------------------------------------------------------------
-function drawHUD(ctx, lives, score, breakableCount, puState) {
+function drawHUD(ctx, lives, score, breakableCount, puState, level) {
   const y0 = 606;
   ctx.font         = '13px monospace';
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'top';
   ctx.fillStyle    = C.hud;
   ctx.fillText(`♥ ${lives}   SCORE ${score}   BRICKS ${breakableCount}`, 10, y0);
+
+  // Level badge (top-right)
+  ctx.textAlign  = 'right';
+  ctx.fillStyle  = level === 2 ? C.magnet : C.slowmo;
+  ctx.font       = 'bold 13px monospace';
+  ctx.fillText(`LVL ${level}`, CANVAS_W - 10, y0);
+  ctx.textAlign  = 'left';
 
   const badges = [
     { key: 'extend', label: 'WIDE PAD', color: C.extend },
@@ -251,6 +260,31 @@ function drawOverlay(ctx, title, sub1, sub2, color) {
     ctx.font = '13px monospace';
     ctx.fillText(sub2, CANVAS_W / 2, CANVAS_H / 2 + 38);
   }
+}
+
+// Level transition overlay — shown for ~2.5s between level 1 and level 2
+function drawTransitionOverlay(ctx, timeLeft) {
+  const alpha = Math.min(1, timeLeft * 1.2);
+  ctx.fillStyle = `rgba(0,0,0,${0.82 * alpha})`;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle   = C.magnet;
+  ctx.shadowColor = C.magnet;
+  ctx.shadowBlur  = 36;
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillText('LEVEL 2', CANVAS_W / 2, CANVAS_H / 2 - 40);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#aaaaaa';
+  ctx.font = '15px monospace';
+  ctx.fillText('Navigate the staircase. Break the core.', CANVAS_W / 2, CANVAS_H / 2 + 18);
+
+  ctx.fillStyle = '#555555';
+  ctx.font = '12px monospace';
+  ctx.fillText('Lives and score carry over.', CANVAS_W / 2, CANVAS_H / 2 + 46);
 }
 
 // Menu overlay — DOM button (#door-toggle) floats above at matching position

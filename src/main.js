@@ -1,5 +1,5 @@
 import { CANVAS_W, CANVAS_H, START_LIVES, PADDLE_Y, BALL_R, CELL, ROWS } from './config.js';
-import { LEVEL_MAP, parseLevel, GAP_LEFT, GAP_RIGHT } from './level.js';
+import { LEVEL_MAP, parseLevel, generateLevel2Map, GAP_LEFT, GAP_RIGHT } from './level.js';
 import { createPaddle, updatePaddle } from './entities/paddle.js';
 import { createBall, launchBall } from './entities/ball.js';
 import { getPowerup } from './entities/brick.js';
@@ -54,8 +54,10 @@ doorToggleEl.addEventListener('click', e => {
 applyToggleStyle(); // set initial label + class
 
 // ── Game state ─────────────────────────────────────────────────────────────
-let state = 'MENU';
-let gs    = null;
+let state        = 'MENU';
+let gs           = null;
+let currentLevel = 1;
+let transitionTimer = 0; // counts down during TRANSITIONING state
 
 function makeCinematic() {
   return {
@@ -68,6 +70,8 @@ function makeCinematic() {
 }
 
 function initGame() {
+  currentLevel = 1;
+  transitionTimer = 0;
   const { bricks, brickGrid, breakableCount } = parseLevel(LEVEL_MAP);
   const paddle = createPaddle();
   const ball   = createBall(paddle.x + paddle.w / 2, PADDLE_Y - BALL_R - 1);
@@ -77,16 +81,35 @@ function initGame() {
     brickGrid,
     breakableCount,
     paddle,
-    balls:      [ball],
-    lives:      START_LIVES,
-    score:      0,
-    puState:    createPowerupState(),
-    paused:     false,
-    gapClosed:  false,
-    doorCloses,           // read from module-level toggle
-    cinematic:  makeCinematic(),
-    scorePops:  [],
+    balls:        [ball],
+    lives:        START_LIVES,
+    score:        0,
+    puState:      createPowerupState(),
+    paused:       false,
+    gapClosed:    false,
+    doorCloses,
+    currentLevel: 1,
+    cinematic:    makeCinematic(),
+    scorePops:    [],
   };
+}
+
+function initLevel2() {
+  currentLevel = 2;
+  transitionTimer = 0;
+  const { bricks, brickGrid, breakableCount } = parseLevel(generateLevel2Map());
+
+  // Carry lives + score + paddle; reset ball, powerups, cinematic
+  gs.bricks        = bricks;
+  gs.brickGrid     = brickGrid;
+  gs.breakableCount = breakableCount;
+  gs.gapClosed     = false;
+  gs.doorCloses    = false; // level 2 has no door mechanic
+  gs.currentLevel  = 2;
+  gs.cinematic     = makeCinematic();
+  gs.scorePops     = [];
+  resetPowerups(gs.puState);
+  gs.balls = [createBall(gs.paddle.x + gs.paddle.w / 2, PADDLE_Y - BALL_R - 1)];
 }
 
 // Seal the gap the instant a ball clears the barrier rows
@@ -174,7 +197,7 @@ function loop(ts) {
   const dt = Math.min((ts - lastTs) / 1000, 1 / 30);
   lastTs = ts;
 
-  // Show DOM toggle on MENU + end screens so player can change before restarting
+  // Show toggle on MENU + end screens; hide during level 2 (no door mechanic there)
   const showToggle = (state === 'MENU' || state === 'WON' || state === 'LOST');
   menuUI.classList.toggle('visible', showToggle);
   menuUI.classList.toggle('end-screen', state === 'WON' || state === 'LOST');
@@ -237,8 +260,22 @@ function loop(ts) {
       // Launch check is AFTER ball creation so a touchend during death frame still works
       if (consumeLaunch(input)) tryLaunch();
 
-      if (gs.breakableCount <= 0) { state = 'WON'; sfxWin(); }
+      if (gs.breakableCount <= 0) {
+        sfxWin();
+        if (currentLevel === 1) {
+          state = 'TRANSITIONING';
+          transitionTimer = 2.5;
+          gs.transitionTimer = transitionTimer;
+        } else {
+          state = 'WON';
+        }
+      }
     }
+
+  } else if (state === 'TRANSITIONING') {
+    transitionTimer -= dt;
+    gs.transitionTimer = transitionTimer;
+    if (transitionTimer <= 0) { initLevel2(); state = 'PLAYING'; }
 
   } else if (state === 'WON' || state === 'LOST') {
     if (consumeLaunch(input)) { initGame(); state = 'PLAYING'; }

@@ -54,6 +54,61 @@ function generateMap() {
 
 export const LEVEL_MAP = generateMap();
 
+// ── Level 2 map ────────────────────────────────────────────────────────────
+// Layout (100×100):
+//   Rows  0-59  breakable field, 8×8 empty clearing at rows 26-33, cols 46-53
+//   Rows 60-79  tunnel zone — cols 48-50 empty passage, rest breakable
+//   Rows 80-99  staircase — 5 rock steps (4 rows each), gap shifts 1 col right
+//               per step; bottom gap cols 44-46, top gap cols 48-50 (= tunnel entry)
+export function generateLevel2Map() {
+  const TUNNEL_LEFT  = 48;
+  const TUNNEL_RIGHT = 51; // cols 48, 49, 50
+
+  // Staircase: each entry = { rowStart (inclusive), rowEnd (exclusive), gapLeft }
+  // gap is always 3 cells wide (18px > ball diameter 8px)
+  const STEPS = [
+    { rowStart: 96, rowEnd: 100, gapLeft: 44 },
+    { rowStart: 92, rowEnd:  96, gapLeft: 45 },
+    { rowStart: 88, rowEnd:  92, gapLeft: 46 },
+    { rowStart: 84, rowEnd:  88, gapLeft: 47 },
+    { rowStart: 80, rowEnd:  84, gapLeft: 48 }, // aligns with tunnel
+  ];
+
+  const CLEAR_R0 = 26, CLEAR_R1 = 34; // 8-row clearing
+  const CLEAR_C0 = 46, CLEAR_C1 = 54; // 8-col clearing
+
+  const rows = [];
+  for (let r = 0; r < ROWS; r++) {
+    let row = '';
+
+    if (r < 60) {
+      // Breakable field with 8×8 empty clearing
+      for (let c = 0; c < COLS; c++) {
+        row += (r >= CLEAR_R0 && r < CLEAR_R1 && c >= CLEAR_C0 && c < CLEAR_C1)
+          ? '.' : randomBlock();
+      }
+
+    } else if (r < 80) {
+      // Tunnel zone: open corridor at cols 48-50, breakable everywhere else
+      for (let c = 0; c < COLS; c++) {
+        row += (c >= TUNNEL_LEFT && c < TUNNEL_RIGHT) ? '.' : randomBlock();
+      }
+
+    } else {
+      // Staircase zone: rock walls, zigzag gap
+      const step = STEPS.find(s => r >= s.rowStart && r < s.rowEnd);
+      const gL = step ? step.gapLeft : TUNNEL_LEFT;
+      const gR = gL + 3;
+      for (let c = 0; c < COLS; c++) {
+        row += (c >= gL && c < gR) ? '.' : 'R';
+      }
+    }
+
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function parseLevel(map) {
   const brickGrid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
   const bricks = [];
