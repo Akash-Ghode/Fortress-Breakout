@@ -59,6 +59,18 @@ let gs           = null;
 let currentLevel = 1;
 let transitionTimer = 0; // counts down during TRANSITIONING state
 
+// Highest level reached this session — game-over restarts resume here.
+// A page refresh resets this back to 1 (no persistence by design).
+let highestLevelReached = 1;
+
+const LEVEL2_SPEED_MUL = 0.7; // ball moves 30% slower in level 2
+
+// "Trapped" detection (level 2 only): counts failed staircase attempts —
+// the ball rises into the staircase, peaks without meaningfully improving on
+// its best height, and falls back. STAIR_FAIL_LIMIT consecutive non-progress
+// peaks ends the run with a TRAPPED message.
+const STAIR_FAIL_LIMIT = 5;
+
 function makeCinematic() {
   return {
     flashLife:    0,     // 1 → 0 over SLAM_FLASH_DUR
@@ -72,6 +84,7 @@ function makeCinematic() {
 function initGame() {
   currentLevel = 1;
   transitionTimer = 0;
+  highestLevelReached = 1; // fresh game — forget any prior progress
   const { bricks, brickGrid, breakableCount } = parseLevel(LEVEL_MAP);
   const paddle = createPaddle();
   const ball   = createBall(paddle.x + paddle.w / 2, PADDLE_Y - BALL_R - 1);
@@ -91,12 +104,14 @@ function initGame() {
     currentLevel: 1,
     cinematic:    makeCinematic(),
     scorePops:    [],
+    stairFailStreak: 0,
   };
 }
 
 function initLevel2() {
   currentLevel = 2;
   transitionTimer = 0;
+  highestLevelReached = 2;
   const { bricks, brickGrid, breakableCount } = parseLevel(generateLevel2Map());
 
   // Carry lives + score + paddle; reset ball, powerups, cinematic
@@ -108,8 +123,38 @@ function initLevel2() {
   gs.currentLevel  = 2;
   gs.cinematic     = makeCinematic();
   gs.scorePops     = [];
+  gs.stairFailStreak = 0;
   resetPowerups(gs.puState);
   gs.balls = [createBall(gs.paddle.x + gs.paddle.w / 2, PADDLE_Y - BALL_R - 1)];
+}
+
+// Game-over restart: resume at the highest level reached this session
+// (a page refresh resets highestLevelReached to 1, so refresh = start over)
+function initGameAtLevel(level) {
+  if (level >= 2) {
+    currentLevel = 2;
+    transitionTimer = 0;
+    const { bricks, brickGrid, breakableCount } = parseLevel(generateLevel2Map());
+    const paddle = createPaddle();
+    const ball   = createBall(paddle.x + paddle.w / 2, PADDLE_Y - BALL_R - 1);
+
+    gs = {
+      bricks, brickGrid, breakableCount, paddle,
+      balls:           [ball],
+      lives:           START_LIVES,
+      score:           0,
+      puState:         createPowerupState(),
+      paused:          false,
+      gapClosed:       false,
+      doorCloses:      false,
+      currentLevel:    2,
+      cinematic:       makeCinematic(),
+      scorePops:       [],
+      stairFailStreak: 0,
+    };
+  } else {
+    initGame();
+  }
 }
 
 // Seal the gap the instant a ball clears the barrier rows
@@ -137,6 +182,48 @@ function checkCloseGap() {
       sfxSlam();
       break;
     }
+  }
+}
+
+// Level 2: detect a ball oscillating in the staircase without making progress.
+// Tracks each ball's best (lowest) y reached since its last "attempt" began.
+// Each time the ball peaks (rises then falls) below the staircase/tunnel
+// boundary without beating its best y by a meaningful margin, count a failed
+// attempt. STAIR_FAIL_LIMIT consecutive failures ends the run as TRAPPED.
+const STAIR_TOP_Y      = 80 * CELL;     // y=480 — staircase/tunnel boundary
+const STAIR_PROGRESS   = CELL * 2;      // must improve by ≥2 cells to count as progress
+
+function checkTrapped(balls) {
+  for (const ball of balls) {
+    if (ball.stuck) { ball.bestY = undefined; ball.prevVy = undefined; continue; }
+
+    if (ball.y < STAIR_TOP_Y) {
+      // Cleared into the tunnel — wipe the slate clean
+      gs.stairFailStreak = 0;
+      ball.bestY  = ball.y;
+      ball.prevVy = ball.vy;
+      continue;
+    }
+
+    if (ball.bestY  === undefined) ball.bestY  = ball.y;
+    if (ball.prevVy === undefined) ball.prevVy = ball.vy;
+
+    // Peak detected: was rising (vy<0), now falling (vy>=0)
+    if (ball.prevVy < 0 && ball.vy >= 0) {
+      if (ball.y < ball.bestY - STAIR_PROGRESS) {
+        gs.stairFailStreak = 0;
+        ball.bestY = ball.y;
+      } else {
+        gs.stairFailStreak = (gs.stairFailStreak || 0) + 1;
+        if (gs.stairFailStreak >= STAIR_FAIL_LIMIT) {
+          state = 'TRAPPED';
+          sfxGameOver();
+          return;
+        }
+      }
+    }
+
+    ball.prevVy = ball.vy;
   }
 }
 
@@ -198,11 +285,11 @@ function loop(ts) {
   lastTs = ts;
 
   // Show toggle on MENU + end screens; hide during level 2 (no door mechanic there)
-  const showToggle = (state === 'MENU' || state === 'WON' || state === 'LOST');
-  menuUI.classList.toggle('visible', showToggle);
-  menuUI.classList.toggle('end-screen', state === 'WON' || state === 'LOST');
+  const isEndScreen = (state === 'WON' || state === 'LOST' || state === 'TRAPPED');
+  menuUI.classList.toggle('visible', state === 'MENU' || isEndScreen);
+  menuUI.classList.toggle('end-screen', isEndScreen);
 
-  if (consumeRestart(input)) { initGame(); state = 'PLAYING'; }
+  if (consumeRestart(input)) { initGameAtLevel(highestLevelReached); state = 'PLAYING'; }
 
   if (state === 'MENU') {
     if (consumeLaunch(input)) { initGame(); state = 'PLAYING'; }
@@ -226,10 +313,12 @@ function loop(ts) {
       tickPowerups(puState, dt);
 
       let speed = getCurrentSpeed(puState);
+      if (currentLevel === 2) speed *= LEVEL2_SPEED_MUL; // 30% slower in level 2
       if (cinematic.threadSlowmo > 0) speed *= THREAD_SLOWMO_F;
 
       updateBalls(balls, paddle, brickGrid, puState, speed, dt, onBrickHit, SFX);
       checkCloseGap();
+      if (currentLevel === 2) checkTrapped(balls);
 
       // Tick cinematic timers
       if (cinematic.flashLife    > 0) cinematic.flashLife    = Math.max(0, cinematic.flashLife    - dt / SLAM_FLASH_DUR);
@@ -249,6 +338,7 @@ function loop(ts) {
         resetPowerups(puState);
         sfxLifeLost();
         reopenGap();
+        gs.stairFailStreak = 0; // fresh ball gets a clean slate
         if (gs.lives <= 0) {
           state = 'LOST';
           sfxGameOver();
@@ -277,8 +367,13 @@ function loop(ts) {
     gs.transitionTimer = transitionTimer;
     if (transitionTimer <= 0) { initLevel2(); state = 'PLAYING'; }
 
-  } else if (state === 'WON' || state === 'LOST') {
+  } else if (state === 'WON') {
+    // Completing the whole game restarts a fresh run from level 1
     if (consumeLaunch(input)) { initGame(); state = 'PLAYING'; }
+
+  } else if (state === 'LOST' || state === 'TRAPPED') {
+    // Game-over resumes at the highest level reached this session
+    if (consumeLaunch(input)) { initGameAtLevel(highestLevelReached); state = 'PLAYING'; }
   }
 
   render(ctx, gs, state);

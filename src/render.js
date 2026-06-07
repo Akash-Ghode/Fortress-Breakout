@@ -97,6 +97,8 @@ export function render(ctx, gs, state) {
     drawEndOverlay(ctx, 'YOU WIN!', gs.score, C.extend);
   } else if (state === 'LOST') {
     drawEndOverlay(ctx, 'GAME OVER', gs.score, C.magnet);
+  } else if (state === 'TRAPPED') {
+    drawEndOverlay(ctx, 'TRAPPED', gs.score, C.fasterBall);
   } else if (gs.paused) {
     drawOverlay(ctx, 'PAUSED', '', 'Press P to resume', C.hud);
   }
